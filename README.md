@@ -1,13 +1,10 @@
-# FrigoScan — Dispensa, Spesa & Carte (GitHub Pages)
+# FrigoScan — Dispensa, Spesa & Carte (GitHub Pages v3 con Sincronizzazione Famiglia)
 
-Web App PWA pronta per essere pubblicata gratuitamente su **GitHub Pages** con percorsi relativi compatibili con `https://<tuo-utente>.github.io/<nome-repository>/`.
+Web App PWA pronta per essere pubblicata gratuitamente su **GitHub Pages** (`https://<tuo-utente>.github.io/<nome-repository>/`).
 
-## Come pubblicarla in 3 passaggi
+## Novità v3
+- **Sincronizzazione Famiglia Automatica:** Collega una sola volta i telefoni della famiglia tramite **Codice Famiglia** o **QR Code** (in *Impostazioni → Sincronizzazione Famiglia*) per condividere automaticamente dispensa, lista della spesa e carte fedeltà senza bisogno di registrazione.
 
-1. Crea un nuovo repository **pubblico** su GitHub (es. `frigoscan`).
-2. Carica tutti i file contenuti in questa cartella (`index.html`, `manifest.json`, `sw.js`, `icon.svg`, `.nojekyll`) nella root del repository (`Add file` → `Upload files` → `Commit changes`).
-3. Vai su **Settings → Pages**:
-   - Sotto **Build and deployment → Source**, seleziona **Deploy from a branch**.
-   - Sotto **Branch**, scegli `main` e `/ (root)`, poi premi **Save**.
-
-Dopo circa 1 minuto la tua app sarà online all'indirizzo `https://<tuo-utente>.github.io/frigoscan/`.
+## Come aggiornare il repository GitHub Pages
+1. Apri il tuo repository su GitHub.
+2. Clicca su **Add file → Upload files**, trascina tutti i file estratti da questo ZIP (`index.html`, `manifest.json`, `sw.js`, `icon.svg`, `.nojekyll`, `README.md`) sovrascrivendo i precedenti e premi **Commit changes**.

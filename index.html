@@ -14,6 +14,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <style>
     * { -webkit-tap-highlight-color: transparent; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
@@ -61,7 +63,6 @@
     <div class="fridge-scene relative w-52 h-80 mb-6 select-none">
       <!-- Fridge Cabinet Interior -->
       <div id="fridge-interior-box" class="fridge-interior absolute inset-0 rounded-3xl bg-slate-100 border-4 border-slate-300 shadow-2xl overflow-hidden flex flex-col justify-between p-3">
-        <!-- Interior Light Glow -->
         <div class="absolute inset-0 bg-gradient-to-b from-amber-100/70 via-sky-50/40 to-emerald-50/60 pointer-events-none"></div>
 
         <!-- Shelf 1 -->
@@ -136,9 +137,13 @@
           </svg>
         </div>
         <div>
-          <div class="flex items-center gap-1.5">
+          <div class="flex items-center gap-1.5 flex-wrap">
             <h1 class="text-lg font-extrabold tracking-tight text-slate-900 leading-none">FrigoScan</h1>
             <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">Beta</span>
+            <button id="header-family-pill" onclick="switchTab('settings')" class="hidden items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span id="header-family-code">Famiglia</span>
+            </button>
           </div>
           <p class="text-xs text-slate-500 mt-0.5">Dispensa, Spesa &amp; Carte</p>
         </div>
@@ -442,6 +447,67 @@
 
     <!-- ==================== TAB 5: IMPOSTAZIONI ==================== -->
     <section id="view-settings" class="tab-view hidden space-y-4">
+
+      <!-- FAMILY SYNC CARD -->
+      <div class="bg-white p-4 rounded-2xl border-2 border-sky-200 shadow-sm space-y-3">
+        <div class="flex items-start justify-between gap-2">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center shrink-0">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            </div>
+            <div>
+              <h3 class="text-sm font-extrabold text-slate-900">Sincronizzazione Famiglia</h3>
+              <p class="text-[11px] text-slate-500">Aggiornamento automatico su tutti i telefoni del gruppo</p>
+            </div>
+          </div>
+          <span id="family-status-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">Solo Locale</span>
+        </div>
+
+        <!-- NOT CONNECTED VIEW -->
+        <div id="family-setup-box" class="space-y-3">
+          <p class="text-xs text-slate-600 leading-relaxed">
+            Collega <strong>una sola volta</strong> i telefoni della famiglia con lo stesso <strong>Codice Famiglia</strong> (senza registrazione): ogni prodotto aggiunto o articolo spuntato si aggiornerà automaticamente su tutti i dispositivi.
+          </p>
+          <button onclick="createFamilyGroup()" class="w-full py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold shadow-sm transition">
+            Crea Nuovo Codice Famiglia
+          </button>
+          <div class="pt-2 border-t border-slate-100">
+            <label class="block text-xs font-bold text-slate-700 mb-1">Hai già un codice? Unisciti alla famiglia</label>
+            <div class="flex gap-2">
+              <input id="family-join-input" type="text" placeholder="Es. FRIGO-4829-CASA" class="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-xs font-mono uppercase focus:outline-none focus:ring-2 focus:ring-sky-500" />
+              <button onclick="joinFamilyGroup()" class="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold">Collega</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CONNECTED VIEW -->
+        <div id="family-connected-box" class="hidden space-y-3">
+          <div class="p-3 rounded-xl bg-sky-50 border border-sky-200 flex items-center justify-between gap-2">
+            <div>
+              <span class="text-[10px] font-bold uppercase text-sky-700 block">Codice Famiglia Attivo</span>
+              <span id="active-family-code-display" class="text-base font-mono font-extrabold text-sky-950 tracking-wider">FRIGO-0000</span>
+            </div>
+            <div class="flex gap-1.5">
+              <button onclick="copyFamilyCode()" class="px-3 py-1.5 rounded-lg bg-white border border-sky-300 text-sky-800 text-xs font-bold">Copia</button>
+              <button onclick="toggleFamilyQr()" class="px-3 py-1.5 rounded-lg bg-sky-600 text-white text-xs font-bold">QR</button>
+            </div>
+          </div>
+
+          <div id="family-qr-box" class="hidden p-4 rounded-xl bg-white border border-slate-200 text-center space-y-2">
+            <div id="family-qrcode-canvas" class="flex justify-center"></div>
+            <p class="text-[11px] text-slate-500">Inquadra questo QR con la fotocamera di un altro smartphone della famiglia per aprire subito FrigoScan già collegato.</p>
+          </div>
+
+          <div class="flex items-center justify-between text-[11px] text-slate-500">
+            <span id="family-last-sync">Sincronizzazione automatica attiva</span>
+            <div class="flex gap-3">
+              <button onclick="forceFamilySync()" class="font-bold text-sky-700 hover:underline">Sincronizza ora</button>
+              <button onclick="leaveFamilyGroup()" class="font-semibold text-rose-600 hover:underline">Scollega</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- BETA TESTING & PRIVACY BANNER -->
       <div class="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 shadow-sm space-y-2.5">
         <div class="flex items-center gap-2">
@@ -455,7 +521,7 @@
           <div class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5">
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
           </div>
-          <p><strong>Privacy garantita:</strong> i tuoi dati (dispensa, lista della spesa, foto e carte fedeltà) <strong>non vengono in nessun modo conservati o inviati a server esterni</strong>. Tutto resta salvato esclusivamente nella memoria locale del tuo dispositivo.</p>
+          <p><strong>Privacy garantita:</strong> nessun dato viene salvato su server proprietari né associato a un account personale. Tutto resta nella memoria locale del tuo dispositivo (e condiviso solo con i dispositivi collegati al tuo eventuale Codice Famiglia).</p>
         </div>
       </div>
 
@@ -692,7 +758,7 @@
   <div id="toast" class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-full bg-slate-900 text-white text-xs font-bold shadow-lg"></div>
 
   <script>
-    // Hide interior once the opaque door closes completely so nothing bleeds through
+    // Hide interior once the opaque door closes completely
     setTimeout(() => {
       const interior = document.getElementById('fridge-interior-box');
       const status = document.getElementById('fridge-door-status');
@@ -720,12 +786,15 @@
       }
     };
 
-    // App State
+    // App State (with deletedIds tombstones for reliable multi-device family merging)
     let state = {
       pantry: [],
       shopping: [],
       cards: [],
-      thresholdDays: 3
+      deletedIds: {},
+      thresholdDays: 3,
+      familyCode: '',
+      updatedAt: 0
     };
 
     let currentTab = 'pantry';
@@ -737,8 +806,209 @@
     let barcodeInterval = null;
     let isOcrBusy = false;
 
+    // Peer-to-Peer Family Sync via Gun.js
+    let gunInstance = null;
+    let familyNode = null;
+    let isApplyingRemote = false;
+
+    function initGun() {
+      if (gunInstance || typeof Gun === 'undefined') return;
+      try {
+        gunInstance = Gun({
+          peers: [
+            'https://gun-manhattan.herokuapp.com/gun',
+            'https://peer.wallie.io/gun',
+            'https://gundb-relay-mlccl.ondigitalocean.app/gun'
+          ],
+          localStorage: false
+        });
+      } catch (e) {}
+    }
+
+    function connectFamilySync(code, pushLocalImmediately = false) {
+      const clean = (code || '').trim().toUpperCase().replace(/[^A-Z0-9\-]/g, '');
+      if (!clean) return;
+      state.familyCode = clean;
+      saveState(false);
+      updateFamilyUI();
+
+      initGun();
+      if (!gunInstance) return;
+
+      familyNode = gunInstance.get('frigoscan_family_room_v3_' + clean);
+
+      if (pushLocalImmediately) {
+        pushStateToFamily();
+      }
+
+      // Listen for live updates from other family phones
+      familyNode.get('snapshot').on((rawPayload) => {
+        if (!rawPayload || typeof rawPayload !== 'string') return;
+        try {
+          const remote = JSON.parse(rawPayload);
+          mergeRemoteState(remote);
+        } catch (e) {}
+      });
+    }
+
+    function pushStateToFamily() {
+      if (!state.familyCode || !familyNode || isApplyingRemote) return;
+      state.updatedAt = Date.now();
+      // Keep sync payload lightweight (exclude large base64 card photos over relay if > 120KB)
+      const syncCards = state.cards.map(c => ({
+        ...c,
+        photo: (c.photo && c.photo.length > 120000) ? '' : (c.photo || '')
+      }));
+      const payload = JSON.stringify({
+        pantry: state.pantry,
+        shopping: state.shopping,
+        cards: syncCards,
+        deletedIds: state.deletedIds || {},
+        updatedAt: state.updatedAt
+      });
+      try {
+        familyNode.get('snapshot').put(payload);
+        const lbl = document.getElementById('family-last-sync');
+        if (lbl) lbl.textContent = 'Sincronizzato alle ' + new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      } catch (e) {}
+    }
+
+    function mergeCollection(localArr, remoteArr, deletedMap) {
+      const map = new Map();
+      (localArr || []).forEach(item => {
+        if (item && item.id && !deletedMap[item.id]) {
+          map.set(item.id, item);
+        }
+      });
+      let changed = false;
+      (remoteArr || []).forEach(rItem => {
+        if (!rItem || !rItem.id || deletedMap[rItem.id]) return;
+        const lItem = map.get(rItem.id);
+        if (!lItem || (Number(rItem.updatedAt || 0) > Number(lItem.updatedAt || 0))) {
+          map.set(rItem.id, rItem);
+          changed = true;
+        }
+      });
+      // Also check if any local item was deleted remotely
+      const merged = Array.from(map.values()).filter(item => !deletedMap[item.id]);
+      if (merged.length !== (localArr || []).length) changed = true;
+      return { merged, changed };
+    }
+
+    function mergeRemoteState(remote) {
+      if (!remote || typeof remote !== 'object') return;
+      isApplyingRemote = true;
+      try {
+        const mergedDeleted = { ...(state.deletedIds || {}), ...(remote.deletedIds || {}) };
+        // Prune tombstones older than 30 days
+        const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+        Object.keys(mergedDeleted).forEach(k => {
+          if (mergedDeleted[k] < cutoff) delete mergedDeleted[k];
+        });
+
+        const pRes = mergeCollection(state.pantry, remote.pantry, mergedDeleted);
+        const sRes = mergeCollection(state.shopping, remote.shopping, mergedDeleted);
+        const cRes = mergeCollection(state.cards, remote.cards, mergedDeleted);
+
+        if (pRes.changed || sRes.changed || cRes.changed) {
+          state.pantry = pRes.merged;
+          state.shopping = sRes.merged;
+          state.cards = cRes.merged;
+          state.deletedIds = mergedDeleted;
+          safeStorage.set('frigoscan_data_v3', JSON.stringify(state));
+          updateBadges();
+          if (currentTab === 'pantry') renderPantry();
+          if (currentTab === 'shopping') renderShopping();
+          if (currentTab === 'cards') renderCards();
+          const lbl = document.getElementById('family-last-sync');
+          if (lbl) lbl.textContent = 'Aggiornato dalla famiglia alle ' + new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+        }
+      } finally {
+        isApplyingRemote = false;
+      }
+    }
+
+    function createFamilyGroup() {
+      const rand = Math.floor(1000 + Math.random() * 9000);
+      const code = `FRIGO-${rand}-CASA`;
+      connectFamilySync(code, true);
+      showToast(`Gruppo creato: ${code}`);
+    }
+
+    function joinFamilyGroup() {
+      const input = document.getElementById('family-join-input');
+      const code = (input.value || '').trim().toUpperCase();
+      if (code.length < 4) {
+        showToast('Inserisci un Codice Famiglia valido');
+        return;
+      }
+      connectFamilySync(code, true);
+      input.value = '';
+      showToast(`Collegato alla famiglia ${code}!`);
+    }
+
+    function leaveFamilyGroup() {
+      if (!confirm('Vuoi scollegare questo telefono dal gruppo famiglia? I dati attuali resteranno comunque salvati sul dispositivo.')) return;
+      state.familyCode = '';
+      familyNode = null;
+      saveState(false);
+      updateFamilyUI();
+      showToast('Dispositivo scollegato dal gruppo');
+    }
+
+    function forceFamilySync() {
+      if (!state.familyCode) return;
+      pushStateToFamily();
+      showToast('Sincronizzazione inviata ai dispositivi della famiglia');
+    }
+
+    function copyFamilyCode() {
+      if (!state.familyCode) return;
+      const shareUrl = `${location.origin}${location.pathname}?fam=${encodeURIComponent(state.familyCode)}`;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(`Unisciti alla dispensa di famiglia su FrigoScan!
+Codice: ${state.familyCode}
+Link diretto: ${shareUrl}`).then(() => {
+          showToast('Codice e link invito copiati!');
+        }).catch(() => showToast(`Codice: ${state.familyCode}`));
+      }
+    }
+
+    function toggleFamilyQr() {
+      const box = document.getElementById('family-qr-box');
+      const canvas = document.getElementById('family-qrcode-canvas');
+      box.classList.toggle('hidden');
+      if (!box.classList.contains('hidden') && state.familyCode && typeof QRCode !== 'undefined') {
+        canvas.innerHTML = '';
+        const inviteUrl = `${location.origin}${location.pathname}?fam=${encodeURIComponent(state.familyCode)}`;
+        new QRCode(canvas, { text: inviteUrl, width: 164, height: 164, colorDark: '#0f172a', colorLight: '#ffffff' });
+      }
+    }
+
+    function updateFamilyUI() {
+      const connected = Boolean(state.familyCode);
+      document.getElementById('family-setup-box').classList.toggle('hidden', connected);
+      document.getElementById('family-connected-box').classList.toggle('hidden', !connected);
+
+      const badge = document.getElementById('family-status-badge');
+      const pill = document.getElementById('header-family-pill');
+      if (connected) {
+        badge.textContent = 'Sincronizzato';
+        badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800';
+        document.getElementById('active-family-code-display').textContent = state.familyCode;
+        pill.classList.remove('hidden');
+        pill.classList.add('inline-flex');
+        document.getElementById('header-family-code').textContent = state.familyCode;
+      } else {
+        badge.textContent = 'Solo Locale';
+        badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600';
+        pill.classList.add('hidden');
+        pill.classList.remove('inline-flex');
+      }
+    }
+
     function loadState() {
-      const raw = safeStorage.get('frigoscan_data_v2');
+      const raw = safeStorage.get('frigoscan_data_v3') || safeStorage.get('frigoscan_data_v2');
       if (raw) {
         try {
           const parsed = JSON.parse(raw);
@@ -746,17 +1016,40 @@
             pantry: Array.isArray(parsed.pantry) ? parsed.pantry : [],
             shopping: Array.isArray(parsed.shopping) ? parsed.shopping : [],
             cards: Array.isArray(parsed.cards) ? parsed.cards : [],
-            thresholdDays: Number(parsed.thresholdDays) || 3
+            deletedIds: parsed.deletedIds && typeof parsed.deletedIds === 'object' ? parsed.deletedIds : {},
+            thresholdDays: Number(parsed.thresholdDays) || 3,
+            familyCode: parsed.familyCode || '',
+            updatedAt: Number(parsed.updatedAt) || 0
           };
         } catch (e) {}
       }
+
+      // Check if opened via ?fam=CODE invite link or QR scan
+      try {
+        const params = new URLSearchParams(location.search);
+        const famParam = params.get('fam');
+        if (famParam && famParam.trim().length >= 4) {
+          state.familyCode = famParam.trim().toUpperCase().replace(/[^A-Z0-9\-]/g, '');
+          history.replaceState({}, '', location.pathname);
+          setTimeout(() => showToast(`Collegato alla famiglia ${state.familyCode}!`), 3200);
+        }
+      } catch (e) {}
+
       document.getElementById('threshold-range').value = state.thresholdDays;
       document.getElementById('threshold-label').textContent = `${state.thresholdDays} giorni`;
+      updateFamilyUI();
+
+      if (state.familyCode) {
+        connectFamilySync(state.familyCode, true);
+      }
     }
 
-    function saveState() {
-      safeStorage.set('frigoscan_data_v2', JSON.stringify(state));
+    function saveState(syncToFamily = true) {
+      safeStorage.set('frigoscan_data_v3', JSON.stringify(state));
       updateBadges();
+      if (syncToFamily && state.familyCode) {
+        pushStateToFamily();
+      }
     }
 
     function showToast(msg) {
@@ -932,6 +1225,7 @@
         document.getElementById('depleted-modal').classList.remove('hidden');
       } else {
         item.qty = next;
+        item.updatedAt = Date.now();
         saveState();
         renderPantry();
       }
@@ -939,6 +1233,7 @@
 
     function confirmDepleted(addToShopping) {
       if (depletedTargetItem) {
+        state.deletedIds[depletedTargetItem.id] = Date.now();
         state.pantry = state.pantry.filter(i => i.id !== depletedTargetItem.id);
         if (addToShopping) {
           const aisle = depletedTargetItem.location === 'Frigo' ? 'Freschi & Frigo' : depletedTargetItem.location === 'Freezer' ? 'Surgelati' : 'Dispensa';
@@ -946,7 +1241,8 @@
             id: 'sh_' + Date.now(),
             name: depletedTargetItem.brand ? `${depletedTargetItem.name} (${depletedTargetItem.brand})` : depletedTargetItem.name,
             aisle,
-            checked: false
+            checked: false,
+            updatedAt: Date.now()
           });
           showToast('Aggiunto alla Lista della Spesa');
         } else {
@@ -985,13 +1281,14 @@
       e.preventDefault();
       const id = document.getElementById('prod-id').value;
       const payload = {
-        id: id || 'pr_' + Date.now(),
+        id: id || 'pr_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
         name: document.getElementById('prod-name').value.trim(),
         brand: document.getElementById('prod-brand').value.trim(),
         location: document.getElementById('prod-location').value,
         qty: parseFloat(document.getElementById('prod-qty').value) || 1,
         unit: document.getElementById('prod-unit').value,
-        expiry: document.getElementById('prod-expiry').value
+        expiry: document.getElementById('prod-expiry').value,
+        updatedAt: Date.now()
       };
 
       if (id) {
@@ -1004,7 +1301,7 @@
       saveState();
       closeModal('product-modal');
       renderPantry();
-      showToast('Prodotto salvato in dispensa');
+      showToast(state.familyCode ? 'Salvato e sincronizzato con la famiglia!' : 'Prodotto salvato in dispensa');
     }
 
     function closeModal(id) {
@@ -1269,7 +1566,8 @@
           id: 'sh_' + Date.now(),
           name: item.brand ? `${item.name} (${item.brand})` : item.name,
           aisle: item.location === 'Frigo' ? 'Freschi & Frigo' : 'Dispensa',
-          checked: false
+          checked: false,
+          updatedAt: Date.now()
         });
         saveState();
         box.classList.add('hidden');
@@ -1284,10 +1582,11 @@
       const name = input.value.trim();
       if (!name) return;
       state.shopping.unshift({
-        id: 'sh_' + Date.now(),
+        id: 'sh_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
         name,
         aisle: document.getElementById('shopping-aisle').value,
-        checked: false
+        checked: false,
+        updatedAt: Date.now()
       });
       input.value = '';
       saveState();
@@ -1307,6 +1606,7 @@
       const item = state.shopping.find(i => i.id === id);
       if (item) {
         item.checked = !item.checked;
+        item.updatedAt = Date.now();
         saveState();
         renderShopping();
       }
@@ -1315,17 +1615,20 @@
     function moveCheckedToPantry() {
       const checked = state.shopping.filter(i => i.checked);
       if (!checked.length) return;
+      const now = Date.now();
       checked.forEach(item => {
         const location = item.aisle === 'Freschi & Frigo' ? 'Frigo' : item.aisle === 'Surgelati' ? 'Freezer' : 'Dispensa';
         state.pantry.unshift({
-          id: 'pr_' + Date.now() + Math.random().toString(36).slice(2, 6),
+          id: 'pr_' + now + '_' + Math.random().toString(36).slice(2, 6),
           name: item.name,
           brand: '',
           location,
           qty: 1,
           unit: 'pz',
-          expiry: ''
+          expiry: '',
+          updatedAt: now
         });
+        state.deletedIds[item.id] = now;
       });
       state.shopping = state.shopping.filter(i => !i.checked);
       saveState();
@@ -1334,6 +1637,8 @@
     }
 
     function clearCheckedShopping() {
+      const now = Date.now();
+      state.shopping.filter(i => i.checked).forEach(i => { state.deletedIds[i.id] = now; });
       state.shopping = state.shopping.filter(i => !i.checked);
       saveState();
       renderShopping();
@@ -1396,12 +1701,13 @@
 
       const finalize = (photoDataUrl) => {
         state.cards.unshift({
-          id: 'cd_' + Date.now(),
+          id: 'cd_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
           name,
           code,
           color,
           photo: photoDataUrl || '',
-          pinned: false
+          pinned: false,
+          updatedAt: Date.now()
         });
         saveState();
         closeModal('card-modal');
@@ -1467,12 +1773,14 @@
       document.getElementById('btn-pin-card').textContent = card.pinned ? 'Rimuovi fissaggio' : 'Fissa in alto';
       document.getElementById('btn-pin-card').onclick = () => {
         card.pinned = !card.pinned;
+        card.updatedAt = Date.now();
         saveState();
         renderCards();
         closeModal('card-view-modal');
       };
 
       document.getElementById('btn-delete-card').onclick = () => {
+        state.deletedIds[id] = Date.now();
         state.cards = state.cards.filter(c => c.id !== id);
         saveState();
         renderCards();
@@ -1522,7 +1830,7 @@
     function updateThreshold(val) {
       state.thresholdDays = Number(val) || 3;
       document.getElementById('threshold-label').textContent = `${state.thresholdDays} giorni`;
-      saveState();
+      saveState(false);
     }
 
     function exportBackupJSON() {
@@ -1558,12 +1866,10 @@
         try {
           const parsed = JSON.parse(reader.result);
           if (parsed && Array.isArray(parsed.pantry)) {
-            state = {
-              pantry: parsed.pantry || [],
-              shopping: parsed.shopping || [],
-              cards: parsed.cards || [],
-              thresholdDays: Number(parsed.thresholdDays) || 3
-            };
+            state.pantry = parsed.pantry || [];
+            state.shopping = parsed.shopping || [];
+            state.cards = parsed.cards || [];
+            state.thresholdDays = Number(parsed.thresholdDays) || 3;
             saveState();
             renderPantry();
             showToast('Backup ripristinato con successo!');
@@ -1578,11 +1884,12 @@
     }
 
     function clearAllData() {
-      if (!confirm('Vuoi davvero cancellare tutti i dati salvati sul dispositivo?')) return;
-      state = { pantry: [], shopping: [], cards: [], thresholdDays: 3 };
-      saveState();
+      if (!confirm('Vuoi davvero cancellare tutti i dati salvati su questo dispositivo?')) return;
+      const keepFamily = state.familyCode;
+      state = { pantry: [], shopping: [], cards: [], deletedIds: {}, thresholdDays: 3, familyCode: keepFamily, updatedAt: Date.now() };
+      saveState(false);
       renderPantry();
-      showToast('Tutti i dati sono stati cancellati');
+      showToast('Tutti i dati locali sono stati cancellati');
     }
 
     function escapeHtml(str) {

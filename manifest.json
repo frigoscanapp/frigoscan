@@ -1,7 +1,7 @@
 {
   "name": "FrigoScan — Dispensa, Spesa & Carte",
   "short_name": "FrigoScan",
-  "description": "Gestisci dispensa, scadenze, lista della spesa e carte fedeltà in locale.",
+  "description": "Gestisci dispensa, scadenze, lista della spesa e carte fedeltà sincronizzate in famiglia.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
